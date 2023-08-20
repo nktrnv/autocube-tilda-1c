@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "autocube-tilda-1c"
+version = "0.1.0"
+description = ""
+authors = ["nktrnv <nktrnv@gmail.com>"]
+readme = "README.md"
+packages = [{include = "autocube_tilda_1c"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic-settings = "^2.0.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
