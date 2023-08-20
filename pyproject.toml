@@ -10,6 +10,7 @@ packages = [{include = "autocube_tilda_1c"}]
 python = "^3.11"
 pydantic-settings = "^2.0.3"
 selenium = "^4.11.2"
+pywinauto = "^0.6.8"
 
 
 [tool.poetry.group.dev.dependencies]
