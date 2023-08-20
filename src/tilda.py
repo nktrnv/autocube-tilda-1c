@@ -2,7 +2,15 @@ import csv
 from pathlib import Path
 from typing import Sequence
 
+from pywinauto import keyboard, findwindows, timings
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions
+
 from src.entities import Product
+from src.config import settings
 
 BRAND_COLUMN = "Brand"
 SKU_COLUMN = "SKU"
@@ -74,3 +82,80 @@ class TildaCsvFileManager:
         csv_dict_row.update(characteristics)
 
         return csv_dict_row
+
+
+class TildaSeleniumCsvFileUploader:
+    def __init__(
+            self, email: str, password: str, project_id: str,
+            file_manager: TildaCsvFileManager, driver: WebDriver
+    ):
+        self._email = email
+        self._password = password
+        self._project_id = project_id
+        self._file_manager = file_manager
+        self._driver = driver
+
+    def upload_products(self):
+        self._file_manager.create_file()
+        self._login_to_tilda()
+        self._upload_file()
+        self._file_manager.remove_file()
+
+    def _login_to_tilda(self):
+        self._driver.get("https://tilda.cc/login")
+
+        email_input = self._driver.find_element(By.ID, "email")
+        email_input.send_keys(self._email)
+
+        password_input = self._driver.find_element(By.ID, "password")
+        password_input.send_keys(self._password)
+
+        password_input.send_keys(Keys.ENTER)
+
+        wait = WebDriverWait(self._driver, settings.selenium_timeout)
+        wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
+
+    def _upload_file(self):
+        self._driver.get(
+            f"https://store.tilda.cc/store/?projectid={self._project_id}")
+
+        self._driver.execute_script(
+            f"tstore_start_import('csv')")
+
+        select_file_button = self._driver.find_element(
+            By.CLASS_NAME, "js-import-load-file-btn")
+        select_file_button.click()
+
+        self._select_file()
+
+        submit_file_button = self._driver.find_element(
+            By.CLASS_NAME, "js-import-load-data")
+        submit_file_button.click()
+
+        submit_import_options_button = self._driver.find_element(
+            By.CSS_SELECTOR, ".btn_importcsv_proccess")
+        submit_import_options_button.click()
+
+        wait = WebDriverWait(
+            self._driver, settings.selenium_file_uploading_timeout)
+        results_element_locator = (
+            By.CSS_SELECTOR, ".t-store__import__results")
+        wait.until(expected_conditions.visibility_of_element_located(
+            results_element_locator))
+
+    def _select_file(self):
+        browser = findwindows.find_element(active_only=True)
+
+        try:
+            timings.wait_until_passes(
+                timeout=settings.selenium_timeout,
+                retry_interval=0.5,
+                func=lambda: findwindows.find_element(
+                    active_only=True, parent=browser),
+                exceptions=findwindows.ElementNotFoundError)
+        except TimeoutError:
+            pass
+        else:
+            filepath = self._file_manager.filepath.absolute()
+            keys = str(filepath) + "{ENTER}"
+            keyboard.send_keys(keys)
