@@ -11,6 +11,7 @@ python = "^3.11"
 pydantic-settings = "^2.0.3"
 selenium = "^4.11.2"
 pywinauto = "^0.6.8"
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
