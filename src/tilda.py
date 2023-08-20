@@ -86,20 +86,17 @@ class TildaCsvFileManager:
 
 class TildaSeleniumCsvFileUploader:
     def __init__(
-            self, email: str, password: str, project_id: str,
-            file_manager: TildaCsvFileManager, driver: WebDriver
-    ):
+            self, csv_filepath: Path, email: str, password: str,
+            project_id: str, driver: WebDriver):
         self._email = email
         self._password = password
         self._project_id = project_id
-        self._file_manager = file_manager
+        self._csv_filepath = csv_filepath
         self._driver = driver
 
-    def upload_products(self):
-        self._file_manager.create_file()
+    def upload_file(self):
         self._login_to_tilda()
         self._upload_file()
-        self._file_manager.remove_file()
 
     def _login_to_tilda(self):
         self._driver.get("https://tilda.cc/login")
@@ -156,6 +153,6 @@ class TildaSeleniumCsvFileUploader:
         except TimeoutError:
             pass
         else:
-            filepath = self._file_manager.filepath.absolute()
+            filepath = self._csv_filepath.absolute()
             keys = str(filepath) + "{ENTER}"
             keyboard.send_keys(keys)
