@@ -1,5 +1,9 @@
-import abc
-from typing import Sequence, Callable
+from copy import deepcopy
+from http import HTTPStatus
+from typing import Sequence, Callable, Self, Iterable
+
+import requests
+from requests.auth import HTTPBasicAuth
 
 from src.entities import Product, Folder
 
@@ -10,15 +14,63 @@ FOLDER_NAME_FIELD = "Description"
 
 NULL_PARENT_KEY = "00000000-0000-0000-0000-000000000000"
 
-MapSingleProduct = Callable[[dict, Sequence[Folder]], Product | None]
+
+class OData1CEntities:
+    def __init__(self, entities: Sequence[dict] | None):
+        self._entities = entities
+
+    @property
+    def entities(self):
+        return self._entities
+
+    def expand_with(
+            self,
+            other_response: Self,
+            by: Callable[[Self, Self], bool],
+            key: str
+    ) -> Self:
+        entity_should_be_expanded = by
+        expanded_entities = deepcopy(self._entities)
+
+        for entity in expanded_entities:
+            entity[key] = []
+
+            for other_entity in other_response._entities:
+                if entity_should_be_expanded(entity, other_entity):
+                    entity[key].append(other_entity)
+
+        return OData1CEntities(expanded_entities)
 
 
-class OData1CProductsMapper(abc.ABC):
+class OData1CClient:
+    def __init__(self, odata_url: str, username: str, password: str):
+        if not odata_url.endswith("/"):
+            odata_url += "/"
+        self._odata_url = odata_url
+        self._auth = HTTPBasicAuth(username, password)
+
+    def get_entities(self, entity: str, select: Iterable[str] | None = None) -> OData1CEntities | None:
+        params = {"$format": "json"}
+        if select is not None:
+            params["$select"] = ",".join(select)
+
+        response = requests.get(
+            self._odata_url + entity, auth=self._auth, params=params)
+
+        if response.status_code != HTTPStatus.OK:
+            return None
+
+        entities = response.json()["value"]
+        return OData1CEntities(entities)
+
+
+class OData1CProductsMapper:
     def __init__(
-            self, products: Sequence[dict],
-            map_single_product: MapSingleProduct
+            self, entities: OData1CEntities,
+            map_single_product: Callable[
+                [dict, Sequence[Folder]], Product | None]
     ):
-        self._products = products
+        self._products = entities.entities
         self._map_single_product = map_single_product
 
     def map_products(self) -> Sequence[Product]:
