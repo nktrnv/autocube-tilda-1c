@@ -92,11 +92,13 @@ class OData1CProductsMapper:
             parent_key = item[PARENT_KEY_FIELD]
             if parent_key == folder_key:
                 is_folder = item[IS_FOLDER_FIELD]
+                copied_parent_folders = deepcopy(parent_folders)
                 if is_folder:
                     products += self._process_folder(
-                        item, parent_folders, nesting_level)
+                        item, copied_parent_folders, nesting_level)
                 else:
-                    products += self._process_product(item, parent_folders)
+                    products += self._process_product(
+                        item, copied_parent_folders)
 
         return products
 
