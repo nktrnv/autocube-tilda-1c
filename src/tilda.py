@@ -89,12 +89,18 @@ class TildaCsvFileManager:
 class TildaSeleniumCsvFileUploader:
     def __init__(
             self, csv_filepath: Path | str, email: str, password: str,
-            project_id: str, driver: WebDriver):
+            project_id: str, driver: WebDriver, timeout: float,
+            file_uploading_timeout: float
+    ):
         self._email = email
         self._password = password
         self._project_id = project_id
         self._csv_filepath = Path(csv_filepath)
         self._driver = driver
+        self._timeout = timeout
+        self._file_uploading_timeout = file_uploading_timeout
+
+        driver.implicitly_wait(self._timeout)
 
     def upload_file(self):
         self._login_to_tilda()
@@ -111,7 +117,7 @@ class TildaSeleniumCsvFileUploader:
 
         password_input.send_keys(Keys.ENTER)
 
-        wait = WebDriverWait(self._driver, settings.selenium_timeout)
+        wait = WebDriverWait(self._driver, self._timeout)
         wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
 
     def _upload_file(self):
@@ -132,13 +138,13 @@ class TildaSeleniumCsvFileUploader:
         submit_file_button.click()
 
         submit_import_options_button = self._driver.find_element(
-            By.CSS_SELECTOR, ".btn_importcsv_proccess")
+            By.CLASS_NAME, "btn_importcsv_proccess")
         submit_import_options_button.click()
 
         wait = WebDriverWait(
-            self._driver, settings.selenium_file_uploading_timeout)
+            self._driver, self._file_uploading_timeout)
         results_element_locator = (
-            By.CSS_SELECTOR, ".t-store__import__results")
+            By.CLASS_NAME, "t-store__import__results")
         wait.until(expected_conditions.visibility_of_element_located(
             results_element_locator))
 
