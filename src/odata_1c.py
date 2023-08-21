@@ -47,7 +47,8 @@ class OData1CClient:
         if not odata_url.endswith("/"):
             odata_url += "/"
         self._odata_url = odata_url
-        self._auth = HTTPBasicAuth(username, password)
+        self._auth = HTTPBasicAuth(
+            username.encode("utf-8"), password.encode("utf-8"))
 
     def get_entities(self, entity: str, select: Iterable[str] | None = None) -> OData1CEntities | None:
         params = {"$format": "json"}
