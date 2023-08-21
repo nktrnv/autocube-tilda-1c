@@ -1,11 +1,11 @@
 from copy import deepcopy
 from http import HTTPStatus
-from typing import Sequence, Callable, Self, Iterable
+from typing import Callable, Iterable, Self, Sequence
 
 import requests
 from requests.auth import HTTPBasicAuth
 
-from src.entities import Product, Folder
+from src.entities import Folder, Product
 
 KEY_FIELD = "Ref_Key"
 PARENT_KEY_FIELD = "Parent_Key"
