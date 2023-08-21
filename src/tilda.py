@@ -2,15 +2,15 @@ import csv
 from pathlib import Path
 from typing import Sequence
 
-from pywinauto import keyboard, findwindows, timings
-from selenium.webdriver.remote.webdriver import WebDriver
+from pywinauto import findwindows, keyboard, timings
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.wait import WebDriverWait
 
-from src.entities import Product
 from src.config import settings
+from src.entities import Product
 
 BRAND_COLUMN = "Brand"
 SKU_COLUMN = "SKU"
@@ -27,8 +27,8 @@ CHARACTERISTIC_COLUMN = "Characteristic"
 
 
 class TildaCsvFileManager:
-    def __init__(self, filepath: Path, products: Sequence[Product]):
-        self.filepath = filepath
+    def __init__(self, filepath: Path | str, products: Sequence[Product]):
+        self.filepath = Path(filepath)
         self._products = products
         self._characteristic_names = self._get_characteristic_names()
 
@@ -40,8 +40,10 @@ class TildaCsvFileManager:
         ]
         fieldnames += self._characteristic_names
 
-        with self.filepath.open("w") as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        with self.filepath.open(
+                "w", encoding="utf-8", newline="") as csvfile:
+            writer = csv.DictWriter(
+                csvfile, fieldnames=fieldnames, delimiter=";")
             writer.writeheader()
 
             for product in self._products:
@@ -86,12 +88,12 @@ class TildaCsvFileManager:
 
 class TildaSeleniumCsvFileUploader:
     def __init__(
-            self, csv_filepath: Path, email: str, password: str,
+            self, csv_filepath: Path | str, email: str, password: str,
             project_id: str, driver: WebDriver):
         self._email = email
         self._password = password
         self._project_id = project_id
-        self._csv_filepath = csv_filepath
+        self._csv_filepath = Path(csv_filepath)
         self._driver = driver
 
     def upload_file(self):
