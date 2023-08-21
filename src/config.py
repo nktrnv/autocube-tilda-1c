@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     odata_url: str
     odata_username: str
     odata_password: str
+    tilda_email: str
+    tilda_password: str
+    tilda_project_id: str
     selenium_timeout: int = 5
     selenium_file_uploading_timeout: int = 60
 
