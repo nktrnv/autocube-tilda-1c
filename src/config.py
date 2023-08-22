@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     dropbox_refresh_token: str
     dropbox_app_key: str
     dropbox_app_secret: str
+    images_directory: str
     tilda_email: str
     tilda_password: str
     tilda_project_id: str

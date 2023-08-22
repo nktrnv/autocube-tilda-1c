@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pathlib import Path
 from typing import Callable, Sequence
 
 import dropbox
@@ -33,6 +34,13 @@ class DropboxProductImagesFolder:
                         f"{self._folder_path}/{image_name}")
                     break
         return products
+
+    def upload_images_from_file_system_directory(self, dir_path: Path | str):
+        for path in Path(dir_path).iterdir():
+            if path.is_file():
+                data = path.read_bytes()
+                path = f"{self._folder_path}/{path.name}"
+                self._dbx.files_upload(data, path)
 
     def _get_image_names(self) -> list[str]:
         image_names = []
