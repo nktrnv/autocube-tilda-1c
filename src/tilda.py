@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
@@ -27,10 +28,20 @@ CHARACTERISTIC_COLUMN = "Characteristic"
 
 
 class TildaCsvFileManager:
-    def __init__(self, filepath: Path | str, products: Sequence[Product]):
-        self.filepath = Path(filepath)
+    def __init__(
+            self,
+            save_to: Path | str,
+            filename_format: str, products: Sequence[Product]
+    ):
+        self._filepath = None
+        self._save_to = Path(save_to)
+        self._filename_format = filename_format
         self._products = products
         self._characteristic_names = self._get_characteristic_names()
+
+    @property
+    def filepath(self):
+        return self._filepath
 
     def create_file(self):
         fieldnames = [
@@ -40,8 +51,12 @@ class TildaCsvFileManager:
         ]
         fieldnames += self._characteristic_names
 
-        with self.filepath.open(
-                "w", encoding="utf-8", newline="") as csvfile:
+        current_datetime = str(datetime.now()).replace(" ", "_")
+        filename = self._filename_format.format(datetime=current_datetime)
+        self._filepath = self._save_to / filename
+
+        with self._filepath.open(
+                mode="w", encoding="utf-8", newline="") as csvfile:
             writer = csv.DictWriter(
                 csvfile, fieldnames=fieldnames, delimiter=";")
             writer.writeheader()
@@ -51,7 +66,7 @@ class TildaCsvFileManager:
                 writer.writerow(csv_dict_row)
 
     def remove_file(self):
-        self.filepath.unlink()
+        self._filepath.unlink()
 
     def _get_characteristic_names(self) -> Sequence[str]:
         characteristic_names = set()
@@ -88,19 +103,19 @@ class TildaCsvFileManager:
 
 class TildaSeleniumCsvFileUploader:
     def __init__(
-            self, csv_filepath: Path | str, email: str, password: str,
-            project_id: str, driver: WebDriver, timeout: float,
+            self, filepath: Path | str, email: str, password: str,
+            project_id: str, driver: WebDriver, selenium_timeout: float,
             file_uploading_timeout: float
     ):
         self._email = email
         self._password = password
         self._project_id = project_id
-        self._csv_filepath = Path(csv_filepath)
+        self._filepath = Path(filepath)
         self._driver = driver
-        self._timeout = timeout
+        self._selenium_timeout = selenium_timeout
         self._file_uploading_timeout = file_uploading_timeout
 
-        driver.implicitly_wait(self._timeout)
+        driver.implicitly_wait(self._selenium_timeout)
 
     def upload_file(self):
         self._login_to_tilda()
@@ -117,7 +132,7 @@ class TildaSeleniumCsvFileUploader:
 
         password_input.send_keys(Keys.ENTER)
 
-        wait = WebDriverWait(self._driver, self._timeout)
+        wait = WebDriverWait(self._driver, self._selenium_timeout)
         wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
 
     def _upload_file(self):
@@ -157,10 +172,11 @@ class TildaSeleniumCsvFileUploader:
                 retry_interval=0.5,
                 func=lambda: findwindows.find_element(
                     active_only=True, parent=browser),
-                exceptions=findwindows.ElementNotFoundError)
+                exceptions=findwindows.ElementNotFoundError
+            )
         except TimeoutError:
             pass
         else:
-            filepath = self._csv_filepath.absolute()
+            filepath = self._filepath.absolute()
             keys = str(filepath) + "{ENTER}"
-            keyboard.send_keys(keys)
+            keyboard.send_keys(keys, with_spaces=True)

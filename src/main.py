@@ -118,18 +118,23 @@ def add_image_url_to_products(
 
 
 def upload_products_to_tilda(products: Sequence[Product]):
-    selenium_driver = webdriver.Chrome()
+    file_manager = TildaCsvFileManager(
+        settings.csv_files_directory,
+        filename_format="import_{datetime}.csv",
+        products=products
+    )
+    file_manager.create_file()
+
     file_uploader = TildaSeleniumCsvFileUploader(
-        CSV_FILENAME, settings.tilda_email, settings.tilda_password,
-        settings.tilda_project_id, selenium_driver, settings.selenium_timeout,
+        file_manager.filepath,
+        settings.tilda_email,
+        settings.tilda_password,
+        settings.tilda_project_id,
+        webdriver.Chrome(),
+        settings.selenium_timeout,
         settings.selenium_file_uploading_timeout
     )
-
-    file_manager = TildaCsvFileManager(CSV_FILENAME, products)
-
-    file_manager.create_file()
     file_uploader.upload_file()
-    file_manager.remove_file()
 
 
 def main():
