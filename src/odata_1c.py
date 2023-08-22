@@ -111,7 +111,9 @@ class OData1CProductsMapper:
 
     def _process_folder(
             self, item: dict,
-            parent_folders: list[Folder], nesting_level: int) -> Sequence[Product]:
+            parent_folders: list[Folder],
+            nesting_level: int
+    ) -> Sequence[Product]:
         key = item[self._key_field]
         folder_name = item[self._folder_name_field]
         folder = Folder(folder_name, nesting_level)
@@ -122,7 +124,8 @@ class OData1CProductsMapper:
         return products
 
     def _process_product(
-            self, item: dict, parent_folders: Sequence[Folder]) -> Sequence[Product]:
+            self, item: dict, parent_folders: Sequence[Folder]
+    ) -> Sequence[Product]:
         product = self._map_single_product(item, parent_folders)
         if product is None:
             return []
