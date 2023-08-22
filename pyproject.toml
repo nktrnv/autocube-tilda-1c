@@ -12,6 +12,7 @@ pydantic-settings = "^2.0.3"
 selenium = "^4.11.2"
 pywinauto = "^0.6.8"
 requests = "^2.31.0"
+dropbox = "^11.36.2"
 
 
 [tool.poetry.group.dev.dependencies]
