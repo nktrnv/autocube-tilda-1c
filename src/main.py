@@ -57,17 +57,27 @@ def get_products_from_1c() -> Sequence[Product]:
     odata_client = OData1CClient(
         settings.odata_url, settings.odata_username, settings.odata_password)
 
-    product_entities = odata_client.get_entities(entity_name="Catalog_Номенклатура",
-                                                 select=["Ref_Key", "Parent_Key", "IsFolder", "Description",
-                                                         "НаименованиеПолное", "Артикул"])
+    product_entities = odata_client.get_entities(
+        entity_name="Catalog_Номенклатура",
+        select=[
+            "Ref_Key", "Parent_Key", "IsFolder", "Description",
+            "НаименованиеПолное", "Артикул"
+        ]
+    )
 
-    stock_entities = odata_client.get_entities(entity_name="AccumulationRegister_ОстаткиТоваровКомпании/Balance()",
-                                               select=["Номенклатура_Key", "КоличествоBalance"])
+    stock_entities = odata_client.get_entities(
+        entity_name="AccumulationRegister_ОстаткиТоваровКомпании/Balance()",
+        select=["Номенклатура_Key", "КоличествоBalance"]
+    )
 
-    price_entities = odata_client.get_entities(entity_name="InformationRegister_Цены_RecordType/SliceLast()",
-                                               select=["Номенклатура_Key", "ТипЦен_Key", "Цена"])
+    price_entities = odata_client.get_entities(
+        entity_name="InformationRegister_Цены_RecordType/SliceLast()",
+        select=["Номенклатура_Key", "ТипЦен_Key", "Цена"]
+    )
 
-    price_type_entities = odata_client.get_entities(entity_name="Catalog_ТипыЦен", select=["Ref_Key", "Description"])
+    price_type_entities = odata_client.get_entities(
+        entity_name="Catalog_ТипыЦен", select=["Ref_Key", "Description"]
+    )
 
     prices_extended_with_types = price_entities.expand_with(
         price_type_entities,
@@ -89,24 +99,22 @@ def get_products_from_1c() -> Sequence[Product]:
     )
 
     return OData1CProductsMapper(
-        extended_product_entities, map_single_product).map_products()[:50]
+        extended_product_entities, map_single_product).map_products()
 
 
 def add_image_url_to_products(
         products: Sequence[Product]) -> Sequence[Product]:
     dropbox_folder = DropboxProductImagesFolder(
-        settings.dropbox_refresh_token,
-        settings.dropbox_app_key,
-        settings.dropbox_app_secret,
-        folder_path="/Запчасти"
+        settings.dropbox_refresh_token, settings.dropbox_app_key,
+        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти"
     )
 
-    dropbox_folder.upload_images_from_file_system_directory(settings.images_directory)
+    dropbox_folder.upload_images(settings.images_directory)
 
-    return dropbox_folder.add_image_url_to_products(
-        products,
-        match=lambda product, image_name: product.sku + ".jpg" == image_name
-    )
+    for product in products:
+        product.image_url = dropbox_folder.get_image_url(product)
+
+    return products
 
 
 def upload_products_to_tilda(products: Sequence[Product]):
