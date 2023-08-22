@@ -120,4 +120,3 @@ class OData1CProductsMapper:
         if product is None:
             return []
         return [product]
-
