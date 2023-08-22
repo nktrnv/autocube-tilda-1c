@@ -1,6 +1,5 @@
-from copy import deepcopy
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable
 
 import dropbox
 from dropbox.exceptions import ApiError
