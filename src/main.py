@@ -8,8 +8,6 @@ from src.entities import Folder, Product
 from src.odata_1c import OData1CClient, OData1CProductsMapper
 from src.tilda import TildaCsvFileManager, TildaSeleniumCsvFileUploader
 
-CSV_FILENAME = "import.csv"
-
 
 def get_product_brand(folders: Sequence[Folder]) -> str:
     for folder in folders:
