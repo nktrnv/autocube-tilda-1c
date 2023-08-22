@@ -57,40 +57,34 @@ def get_products_from_1c() -> Sequence[Product]:
     odata_client = OData1CClient(
         settings.odata_url, settings.odata_username, settings.odata_password)
 
-    product_entities = odata_client.get_entities(
-        entity="Catalog_Номенклатура",
-        select=["Ref_Key", "Parent_Key", "IsFolder", "Description",
-                "НаименованиеПолное", "Артикул"]
-    )
+    product_entities = odata_client.get_entities(entity_name="Catalog_Номенклатура",
+                                                 select=["Ref_Key", "Parent_Key", "IsFolder", "Description",
+                                                         "НаименованиеПолное", "Артикул"])
 
-    stock_entities = odata_client.get_entities(
-        entity="AccumulationRegister_ОстаткиТоваровКомпании/Balance()",
-        select=["Номенклатура_Key", "КоличествоBalance"]
-    )
+    stock_entities = odata_client.get_entities(entity_name="AccumulationRegister_ОстаткиТоваровКомпании/Balance()",
+                                               select=["Номенклатура_Key", "КоличествоBalance"])
 
-    price_entities = odata_client.get_entities(
-        entity="InformationRegister_Цены_RecordType/SliceLast()",
-        select=["Номенклатура_Key", "ТипЦен_Key", "Цена"]
-    )
+    price_entities = odata_client.get_entities(entity_name="InformationRegister_Цены_RecordType/SliceLast()",
+                                               select=["Номенклатура_Key", "ТипЦен_Key", "Цена"])
 
-    price_type_entities = odata_client.get_entities(
-        entity="Catalog_ТипыЦен",
-        select=["Ref_Key", "Description"]
-    )
+    price_type_entities = odata_client.get_entities(entity_name="Catalog_ТипыЦен", select=["Ref_Key", "Description"])
 
     prices_extended_with_types = price_entities.expand_with(
         price_type_entities,
-        by=lambda price, price_type: price["ТипЦен_Key"] == price_type["Ref_Key"],
+        expand_condition=lambda price, price_type:
+            price["ТипЦен_Key"] == price_type["Ref_Key"],
         key="ТипЦены"
     )
 
     extended_product_entities = product_entities.expand_with(
         prices_extended_with_types,
-        by=lambda product, price: product["Ref_Key"] == price["Номенклатура_Key"],
+        expand_condition=lambda product, price:
+            product["Ref_Key"] == price["Номенклатура_Key"],
         key="Цены"
     ).expand_with(
         stock_entities,
-        by=lambda product, stock: product["Ref_Key"] == stock["Номенклатура_Key"],
+        expand_condition=lambda product, stock:
+            product["Ref_Key"] == stock["Номенклатура_Key"],
         key="Остаток"
     )
 

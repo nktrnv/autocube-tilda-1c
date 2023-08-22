@@ -1,18 +1,10 @@
 from copy import deepcopy
-from http import HTTPStatus
 from typing import Callable, Iterable, Self, Sequence
 
 import requests
 from requests.auth import HTTPBasicAuth
 
 from src.entities import Folder, Product
-
-KEY_FIELD = "Ref_Key"
-PARENT_KEY_FIELD = "Parent_Key"
-IS_FOLDER_FIELD = "IsFolder"
-FOLDER_NAME_FIELD = "Description"
-
-NULL_PARENT_KEY = "00000000-0000-0000-0000-000000000000"
 
 
 class OData1CEntities:
@@ -26,10 +18,10 @@ class OData1CEntities:
     def expand_with(
             self,
             other_response: Self,
-            by: Callable[[Self, Self], bool],
+            expand_condition: Callable[[Self, Self], bool],
             key: str
     ) -> Self:
-        entity_should_be_expanded = by
+        entity_should_be_expanded = expand_condition
         expanded_entities = deepcopy(self._entities)
 
         for entity in expanded_entities:
@@ -50,16 +42,17 @@ class OData1CClient:
         self._auth = HTTPBasicAuth(
             username.encode("utf-8"), password.encode("utf-8"))
 
-    def get_entities(self, entity: str, select: Iterable[str] | None = None) -> OData1CEntities | None:
+    def get_entities(
+            self, entity_name: str, select: Iterable[str] | None = None
+    ) -> OData1CEntities | None:
         params = {"$format": "json"}
         if select is not None:
             params["$select"] = ",".join(select)
 
         response = requests.get(
-            self._odata_url + entity, auth=self._auth, params=params)
+            self._odata_url + entity_name, auth=self._auth, params=params)
 
-        if response.status_code != HTTPStatus.OK:
-            return None
+        response.raise_for_status()
 
         entities = response.json()["value"]
         return OData1CEntities(entities)
@@ -67,31 +60,45 @@ class OData1CClient:
 
 class OData1CProductsMapper:
     def __init__(
-            self, entities: OData1CEntities,
+            self,
+            entities: OData1CEntities,
             map_single_product: Callable[
-                [dict, Sequence[Folder]], Product | None]
+                [dict, Sequence[Folder]], Product | None],
+            key_field: str = "Ref_Key",
+            parent_key_field: str = "Parent_Key",
+            is_folder_field: str = "IsFolder",
+            folder_name_field: str = "Description",
+            null_parent_key: str = "00000000-0000-0000-0000-000000000000"
     ):
         self._products = entities.entities
         self._map_single_product = map_single_product
+        self._key_field = key_field
+        self._parent_key_field = parent_key_field
+        self._is_folder_field = is_folder_field
+        self._folder_name_field = folder_name_field
+        self._null_parent_key = null_parent_key
 
     def map_products(self) -> Sequence[Product]:
         return self._get_products_in_folder()
 
     def _get_products_in_folder(
             self,
-            folder_key: str = NULL_PARENT_KEY,
+            folder_key: str | None = None,
             parent_folders: list[Folder] | None = None,
             nesting_level: int = 0
     ) -> Sequence[Product]:
+        if folder_key is None:
+            folder_key = self._null_parent_key
+
         if parent_folders is None:
             parent_folders = []
 
         products = []
 
         for item in self._products:
-            parent_key = item[PARENT_KEY_FIELD]
+            parent_key = item[self._parent_key_field]
             if parent_key == folder_key:
-                is_folder = item[IS_FOLDER_FIELD]
+                is_folder = item[self._is_folder_field]
                 copied_parent_folders = deepcopy(parent_folders)
                 if is_folder:
                     products += self._process_folder(
@@ -105,8 +112,8 @@ class OData1CProductsMapper:
     def _process_folder(
             self, item: dict,
             parent_folders: list[Folder], nesting_level: int) -> Sequence[Product]:
-        key = item[KEY_FIELD]
-        folder_name = item[FOLDER_NAME_FIELD]
+        key = item[self._key_field]
+        folder_name = item[self._folder_name_field]
         folder = Folder(folder_name, nesting_level)
         parent_folders += [folder]
         nesting_level += 1
