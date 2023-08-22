@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     tilda_email: str
     tilda_password: str
     tilda_project_id: str
-    selenium_timeout: int = 5
-    selenium_file_uploading_timeout: int = 180
+    selenium_timeout: int
+    selenium_file_uploading_timeout: int
 
 
 settings = Settings()
