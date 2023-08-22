@@ -112,7 +112,9 @@ def add_image_url_to_products(
     dropbox_folder.upload_images(settings.images_directory)
 
     for product in products:
-        product.image_url = dropbox_folder.get_image_url(product)
+        product.image_url = dropbox_folder.get_image_url(
+            match=lambda image_name: product.sku + ".jpg" == image_name
+        )
 
     return products
 

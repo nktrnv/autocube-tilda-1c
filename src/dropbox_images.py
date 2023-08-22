@@ -20,14 +20,12 @@ class DropboxProductImagesFolder:
         )
         self._dropbox_folder_path = dropbox_folder_path
 
-    def get_image_url(
-            self, product: Product, match: Callable[[Product, str], bool]
-    ) -> str | None:
+    def get_image_url(self, match: Callable[[str], bool]) -> str | None:
         if self._image_names is None:
             self._image_names = self._get_image_names()
 
         for image_name in self._image_names:
-            if match(product, image_name):
+            if match(image_name):
                 dropbox_image_path = \
                     f"{self._dropbox_folder_path}/{image_name}"
                 return self._get_direct_shared_link(
