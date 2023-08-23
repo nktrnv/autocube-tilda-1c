@@ -1,6 +1,7 @@
 import csv
+from datetime import datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Iterable, Sequence
 
 from pywinauto import findwindows, keyboard, timings
 from selenium.webdriver.common.by import By
@@ -27,31 +28,74 @@ CHARACTERISTIC_COLUMN = "Characteristic"
 
 
 class TildaCsvFileManager:
-    def __init__(self, filepath: Path | str, products: Sequence[Product]):
-        self.filepath = Path(filepath)
+    def __init__(
+            self, save_to: Path | str, filename_format: str,
+            backup_filename: str, products: Sequence[Product]
+    ):
+        self._filepath = None
+        self._is_empty_file = None
+        self._save_to = Path(save_to)
+        self._filename_format = filename_format
+        self._backup_filepath = self._save_to / backup_filename
         self._products = products
-        self._characteristic_names = self._get_characteristic_names()
 
-    def create_file(self):
-        fieldnames = [
+        self._characteristic_names = self._get_characteristic_names()
+        self._fieldnames = [
             BRAND_COLUMN, SKU_COLUMN, CATEGORY_COLUMN, TITLE_COLUMN,
             DESCRIPTION_COLUMN, TEXT_COLUMN, PHOTO_COLUMN, PRICE_COLUMN,
             QUANTITY_COLUMN, OLD_PRICE_COLUMN, EXTERNAL_ID_COLUMN
         ]
-        fieldnames += self._characteristic_names
+        self._fieldnames += self._characteristic_names
 
-        with self.filepath.open(
-                "w", encoding="utf-8", newline="") as csvfile:
+    @property
+    def filepath(self):
+        return self._filepath
+
+    @property
+    def is_empty_file(self):
+        return self._is_empty_file
+
+    def create_file(self):
+        old_backup_file_rows = self._get_backup_file_rows()
+        current_file_rows = []
+        new_backup_file_rows = []
+
+        for product in self._products:
+            current_product_row = self._get_product_csv_dict_row(product)
+            new_backup_file_rows.append(current_product_row)
+            if current_product_row not in old_backup_file_rows:
+                current_file_rows.append(current_product_row)
+
+        self._is_empty_file = False
+        if len(current_file_rows) == 0:
+            self._is_empty_file = True
+
+        current_datetime = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
+        filename = self._filename_format.format(datetime=current_datetime)
+        self._filepath = self._save_to / filename
+
+        self._write_file(self._filepath, current_file_rows)
+        self._write_file(self._backup_filepath,new_backup_file_rows)
+
+    def _get_backup_file_rows(self) -> Sequence[dict]:
+        last_file_rows = []
+        if self._backup_filepath.is_file():
+            last_file_rows = self._read_file(self._backup_filepath)
+        return last_file_rows
+
+    def _read_file(self, path: Path) -> Sequence[dict]:
+        with path.open(mode="r", encoding="utf-8", newline="") as file:
+            reader = csv.DictReader(
+                file, fieldnames=self._fieldnames, delimiter=";")
+            next(reader)
+            return list(reader)
+
+    def _write_file(self, path: Path, rows: Iterable[dict]):
+        with path.open(mode="w", encoding="utf-8", newline="") as file:
             writer = csv.DictWriter(
-                csvfile, fieldnames=fieldnames, delimiter=";")
+                file, fieldnames=self._fieldnames, delimiter=";")
             writer.writeheader()
-
-            for product in self._products:
-                csv_dict_row = self._get_product_csv_dict_row(product)
-                writer.writerow(csv_dict_row)
-
-    def remove_file(self):
-        self.filepath.unlink()
+            writer.writerows(rows)
 
     def _get_characteristic_names(self) -> Sequence[str]:
         characteristic_names = set()
@@ -83,24 +127,30 @@ class TildaCsvFileManager:
             characteristics[characteristic.name] = characteristic.value
         csv_dict_row.update(characteristics)
 
+        for key, value in csv_dict_row.items():
+            if value is None:
+                csv_dict_row[key] = ""
+            else:
+                csv_dict_row[key] = str(value).replace("\n", "")
+
         return csv_dict_row
 
 
 class TildaSeleniumCsvFileUploader:
     def __init__(
-            self, csv_filepath: Path | str, email: str, password: str,
-            project_id: str, driver: WebDriver, timeout: float,
+            self, filepath: Path | str, email: str, password: str,
+            project_id: str, driver: WebDriver, selenium_timeout: float,
             file_uploading_timeout: float
     ):
         self._email = email
         self._password = password
         self._project_id = project_id
-        self._csv_filepath = Path(csv_filepath)
+        self._filepath = Path(filepath)
         self._driver = driver
-        self._timeout = timeout
+        self._selenium_timeout = selenium_timeout
         self._file_uploading_timeout = file_uploading_timeout
 
-        driver.implicitly_wait(self._timeout)
+        driver.implicitly_wait(self._selenium_timeout)
 
     def upload_file(self):
         self._login_to_tilda()
@@ -117,7 +167,7 @@ class TildaSeleniumCsvFileUploader:
 
         password_input.send_keys(Keys.ENTER)
 
-        wait = WebDriverWait(self._driver, self._timeout)
+        wait = WebDriverWait(self._driver, self._selenium_timeout)
         wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
 
     def _upload_file(self):
@@ -157,10 +207,11 @@ class TildaSeleniumCsvFileUploader:
                 retry_interval=0.5,
                 func=lambda: findwindows.find_element(
                     active_only=True, parent=browser),
-                exceptions=findwindows.ElementNotFoundError)
+                exceptions=findwindows.ElementNotFoundError
+            )
         except TimeoutError:
             pass
         else:
-            filepath = self._csv_filepath.absolute()
+            filepath = self._filepath.absolute()
             keys = str(filepath) + "{ENTER}"
-            keyboard.send_keys(keys)
+            keyboard.send_keys(keys, with_spaces=True)
