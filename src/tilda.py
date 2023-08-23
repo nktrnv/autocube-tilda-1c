@@ -10,7 +10,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
-from src.config import settings
 from src.entities import Product
 
 BRAND_COLUMN = "Brand"
