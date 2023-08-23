@@ -101,7 +101,7 @@ def get_products_from_1c() -> Sequence[Product]:
 
 
 def add_image_url_to_products(
-        products: Sequence[Product]) -> Sequence[Product]:
+        products: Sequence[Product]):
     dropbox_folder = DropboxProductImagesFolder(
         settings.dropbox_refresh_token, settings.dropbox_app_key,
         settings.dropbox_app_secret, dropbox_folder_path="/Запчасти"
@@ -109,12 +109,10 @@ def add_image_url_to_products(
 
     dropbox_folder.upload_images(settings.images_directory)
 
-    for product in products:
-        product.image_url = dropbox_folder.get_image_url(
-            match=lambda image_name: product.sku + ".jpg" == image_name
-        )
-
-    return products
+    dropbox_folder.add_image_url_to_products(
+        products,
+        match=lambda product, image_name: product.sku + ".jpg" == image_name
+    )
 
 
 def upload_products_to_tilda(products: Sequence[Product]):
@@ -139,8 +137,8 @@ def upload_products_to_tilda(products: Sequence[Product]):
 
 def main():
     products = get_products_from_1c()
-    products_with_images = add_image_url_to_products(products)
-    upload_products_to_tilda(products_with_images)
+    add_image_url_to_products(products)
+    upload_products_to_tilda(products)
 
 
 if __name__ == '__main__':
