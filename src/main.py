@@ -36,7 +36,7 @@ def map_single_product(
     folder_names = [folder.name for folder in folders]
     is_not_part = "Запасные части" not in folder_names
     is_not_foton = "FOTON" not in folder_names
-    if is_not_part and is_not_foton:
+    if is_not_part or is_not_foton:
         return
 
     return Product(
