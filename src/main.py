@@ -119,9 +119,13 @@ def upload_products_to_tilda(products: Sequence[Product]):
     file_manager = TildaCsvFileManager(
         settings.csv_files_directory,
         filename_format="import_{datetime}.csv",
+        backup_filename="import_backup.csv",
         products=products
     )
     file_manager.create_file()
+
+    if file_manager.is_empty_file:
+        return
 
     file_uploader = TildaSeleniumCsvFileUploader(
         file_manager.filepath,
