@@ -51,9 +51,7 @@ class TildaCsvFileManager:
         ]
         fieldnames += self._characteristic_names
 
-        current_datetime = str(datetime.now())
-        current_datetime = current_datetime.replace(
-            " ", "_").replace(":", "_")
+        current_datetime = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
         filename = self._filename_format.format(datetime=current_datetime)
         self._filepath = self._save_to / filename
 
