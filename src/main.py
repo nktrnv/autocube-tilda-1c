@@ -1,7 +1,5 @@
 from typing import Sequence
 
-from selenium import webdriver
-
 from src.config import settings
 from src.dropbox_images import DropboxProductImagesFolder
 from src.entities import Folder, Product
@@ -132,7 +130,6 @@ def upload_products_to_tilda(products: Sequence[Product]):
         settings.tilda_email,
         settings.tilda_password,
         settings.tilda_project_id,
-        webdriver.Chrome(),
         settings.selenium_timeout,
         settings.selenium_file_uploading_timeout
     )

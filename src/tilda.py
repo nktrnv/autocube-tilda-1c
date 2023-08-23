@@ -3,14 +3,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from pywinauto import findwindows, keyboard, timings
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
-from src.config import settings
 from src.entities import Product
 
 BRAND_COLUMN = "Brand"
@@ -139,18 +138,22 @@ class TildaCsvFileManager:
 class TildaSeleniumCsvFileUploader:
     def __init__(
             self, filepath: Path | str, email: str, password: str,
-            project_id: str, driver: WebDriver, selenium_timeout: float,
+            project_id: str, selenium_timeout: float,
             file_uploading_timeout: float
     ):
         self._email = email
         self._password = password
         self._project_id = project_id
         self._filepath = Path(filepath)
-        self._driver = driver
         self._selenium_timeout = selenium_timeout
         self._file_uploading_timeout = file_uploading_timeout
 
-        driver.implicitly_wait(self._selenium_timeout)
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--window-size=1920,1080")
+        self._driver = webdriver.Chrome(options=chrome_options)
+
+        self._driver.implicitly_wait(self._selenium_timeout)
 
     def upload_file(self):
         self._login_to_tilda()
@@ -174,14 +177,21 @@ class TildaSeleniumCsvFileUploader:
         self._driver.get(
             f"https://store.tilda.cc/store/?projectid={self._project_id}")
 
-        self._driver.execute_script(
-            f"tstore_start_import('csv')")
+        self._driver.execute_script(f"tstore_start_import('csv')")
 
         select_file_button = self._driver.find_element(
             By.CLASS_NAME, "js-import-load-file-btn")
         select_file_button.click()
 
-        self._select_file()
+        hidden_file_input = self._driver.find_element(
+            By.CSS_SELECTOR, "input[type=\"file\"]"
+        )
+        hidden_file_input.send_keys(str(self._filepath))
+
+        self._driver.execute_script(
+            "document.querySelector(`.js-import-load-data`).classList"
+            ".remove(`disabled`)"
+        )
 
         submit_file_button = self._driver.find_element(
             By.CLASS_NAME, "js-import-load-data")
@@ -197,21 +207,3 @@ class TildaSeleniumCsvFileUploader:
             By.CLASS_NAME, "t-store__import__results")
         wait.until(expected_conditions.visibility_of_element_located(
             results_element_locator))
-
-    def _select_file(self):
-        browser = findwindows.find_element(active_only=True)
-
-        try:
-            timings.wait_until_passes(
-                timeout=settings.selenium_timeout,
-                retry_interval=0.5,
-                func=lambda: findwindows.find_element(
-                    active_only=True, parent=browser),
-                exceptions=findwindows.ElementNotFoundError
-            )
-        except TimeoutError:
-            pass
-        else:
-            filepath = self._filepath.absolute()
-            keys = str(filepath) + "{ENTER}"
-            keyboard.send_keys(keys, with_spaces=True)
