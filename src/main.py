@@ -1,10 +1,15 @@
 from typing import Sequence
 
+from loguru import logger
+
 from src.config import settings
-from src.dropbox_images import DropboxProductImagesFolder
 from src.entities import Folder, Product
-from src.odata_1c import OData1CClient, OData1CProductsMapper
+from src.images import DropboxImages, ImagesFolder
+from src.odata_1c import OData1CClient, OData1CMapper
+from src.state import State
 from src.tilda import TildaCsvFileManager, TildaSeleniumCsvFileUploader
+
+logger.add(settings.logfile, format="{time} {level} {message}", level="INFO")
 
 
 def get_product_brand(folders: Sequence[Folder]) -> str:
@@ -94,36 +99,32 @@ def get_products_from_1c() -> Sequence[Product]:
         key="Остаток"
     )
 
-    return OData1CProductsMapper(
+    mapped_products = OData1CMapper(
         extended_product_entities, map_single_product).map_products()
 
+    logger.info(f"Successfully received information about "
+                f"{len(mapped_products)} products using OData.")
 
-def add_image_url_to_products(
-        products: Sequence[Product]):
-    dropbox_folder = DropboxProductImagesFolder(
-        settings.dropbox_refresh_token, settings.dropbox_app_key,
-        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти"
-    )
+    if len(mapped_products) > settings.max_products_number:
+        logger.warning(f"Exceeded the maximum number of products in the Tilda. "
+                       f"The number of products was limited to "
+                       f"{settings.max_products_number}")
 
-    dropbox_folder.upload_images(settings.images_directory)
-
-    dropbox_folder.add_image_url_to_products(
-        products,
-        match=lambda product, image_name: product.sku + ".jpg" == image_name
-    )
+    return mapped_products[:settings.max_products_number]
 
 
 def upload_products_to_tilda(products: Sequence[Product]):
+    if len(products) == 0:
+        logger.info("Uploading files to the Tilde is skipped because the"
+                    "number of products is zero")
+        return
+
     file_manager = TildaCsvFileManager(
         settings.csv_files_directory,
         filename_format="import_{datetime}.csv",
-        backup_filename="import_backup.csv",
         products=products
     )
     file_manager.create_file()
-
-    if file_manager.is_empty_file:
-        return
 
     file_uploader = TildaSeleniumCsvFileUploader(
         file_manager.filepath,
@@ -136,10 +137,32 @@ def upload_products_to_tilda(products: Sequence[Product]):
     file_uploader.upload_file()
 
 
+@logger.catch
 def main():
     products = get_products_from_1c()
-    add_image_url_to_products(products)
-    upload_products_to_tilda(products)
+
+    images_folder = ImagesFolder(
+        settings.images_folder,
+        products,
+        match=lambda product, image_name: product.sku == image_name
+    )
+    products_with_images = images_folder.get_products_with_images()
+
+    state = State(settings.state_file)
+    products_with_images_to_update = state.filter_not_presented(
+        products_with_images)
+
+    dropbox_images = DropboxImages(
+        settings.dropbox_refresh_token, settings.dropbox_app_key,
+        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти",
+        products_with_images=products_with_images_to_update
+    )
+    products_with_image_urls = dropbox_images.get_products_with_image_urls()
+
+    upload_products_to_tilda(products_with_image_urls)
+
+    state.dump(products_with_images)
+    dropbox_images.delete_uploaded_images()
 
 
 if __name__ == '__main__':

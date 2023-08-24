@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Sequence
 
 
@@ -19,9 +20,15 @@ class Product:
     price: float | None = None
     old_price: float | None = None
     quantity: int | None = None
-    image_url: str = ""
+    image_url: str = field(default="", compare=False)
     categories: Sequence[str] = field(default_factory=list)
     characteristics: Sequence[Characteristic] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class ProductWithImage:
+    product: Product
+    image_path: Path | None = None
 
 
 @dataclass(slots=True)

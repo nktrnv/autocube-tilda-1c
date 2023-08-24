@@ -3,7 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from loguru import logger
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -29,13 +31,12 @@ CHARACTERISTIC_COLUMN = "Characteristic"
 class TildaCsvFileManager:
     def __init__(
             self, save_to: Path | str, filename_format: str,
-            backup_filename: str, products: Sequence[Product]
+            products: Sequence[Product]
     ):
         self._filepath = None
         self._is_empty_file = None
         self._save_to = Path(save_to)
         self._filename_format = filename_format
-        self._backup_filepath = self._save_to / backup_filename
         self._products = products
 
         self._characteristic_names = self._get_characteristic_names()
@@ -50,44 +51,17 @@ class TildaCsvFileManager:
     def filepath(self):
         return self._filepath
 
-    @property
-    def is_empty_file(self):
-        return self._is_empty_file
-
     def create_file(self):
-        old_backup_file_rows = self._get_backup_file_rows()
-        current_file_rows = []
-        new_backup_file_rows = []
-
-        for product in self._products:
-            current_product_row = self._get_product_csv_dict_row(product)
-            new_backup_file_rows.append(current_product_row)
-            if current_product_row not in old_backup_file_rows:
-                current_file_rows.append(current_product_row)
-
-        self._is_empty_file = False
-        if len(current_file_rows) == 0:
-            self._is_empty_file = True
-
         current_datetime = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
         filename = self._filename_format.format(datetime=current_datetime)
         self._filepath = self._save_to / filename
 
-        self._write_file(self._filepath, current_file_rows)
-        self._write_file(self._backup_filepath,new_backup_file_rows)
+        logger.info(f"Start creating a csv file {self._filepath}")
 
-    def _get_backup_file_rows(self) -> Sequence[dict]:
-        last_file_rows = []
-        if self._backup_filepath.is_file():
-            last_file_rows = self._read_file(self._backup_filepath)
-        return last_file_rows
+        rows = map(self._get_product_csv_dict_row, self._products)
+        self._write_file(self._filepath, rows)
 
-    def _read_file(self, path: Path) -> Sequence[dict]:
-        with path.open(mode="r", encoding="utf-8", newline="") as file:
-            reader = csv.DictReader(
-                file, fieldnames=self._fieldnames, delimiter=";")
-            next(reader)
-            return list(reader)
+        logger.info(f"Csv file {self._filepath} was created successfully")
 
     def _write_file(self, path: Path, rows: Iterable[dict]):
         with path.open(mode="w", encoding="utf-8", newline="") as file:
@@ -126,12 +100,6 @@ class TildaCsvFileManager:
             characteristics[characteristic.name] = characteristic.value
         csv_dict_row.update(characteristics)
 
-        for key, value in csv_dict_row.items():
-            if value is None:
-                csv_dict_row[key] = ""
-            else:
-                csv_dict_row[key] = str(value).replace("\n", "")
-
         return csv_dict_row
 
 
@@ -156,10 +124,18 @@ class TildaSeleniumCsvFileUploader:
         self._driver.implicitly_wait(self._selenium_timeout)
 
     def upload_file(self):
-        self._login_to_tilda()
-        self._upload_file()
+        try:
+            self._login_to_tilda()
+        except TimeoutException:
+            logger.error("Error while logging in to the Tilda website. A "
+                         "captcha or an incorrect login or password was "
+                         "encountered.")
+        else:
+            self._upload_file()
 
     def _login_to_tilda(self):
+        logger.info("Start to login to Tilda website.")
+
         self._driver.get("https://tilda.cc/login")
 
         email_input = self._driver.find_element(By.ID, "email")
@@ -173,7 +149,12 @@ class TildaSeleniumCsvFileUploader:
         wait = WebDriverWait(self._driver, self._selenium_timeout)
         wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
 
+        logger.info("Successfully logged in to the Tilda website.")
+
     def _upload_file(self):
+        logger.info(f"Start uploading a csv file {self._filepath.name} to "
+                    f"Tilda.")
+
         self._driver.get(
             f"https://store.tilda.cc/store/?projectid={self._project_id}")
 
@@ -205,5 +186,13 @@ class TildaSeleniumCsvFileUploader:
             self._driver, self._file_uploading_timeout)
         results_element_locator = (
             By.CLASS_NAME, "t-store__import__results")
-        wait.until(expected_conditions.visibility_of_element_located(
-            results_element_locator))
+
+        try:
+            wait.until(expected_conditions.visibility_of_element_located(
+                results_element_locator))
+        except TimeoutException:
+            logger.error(f"Exceeded the timeout for uploading a csv file "
+                         f"{self._filepath.name} to the Tilda.")
+
+        logger.info(f"Csv file {self._filepath.name} successfully uploaded to "
+                    f"Tilda.")
