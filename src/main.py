@@ -131,7 +131,7 @@ def main():
     )
 
     state = State(settings.state_file)
-    products_with_images = state.filter_not_presented(
+    products_with_images_to_update = state.filter_not_presented(
         products_with_images)
 
     dropbox_images = DropboxImages(
@@ -139,7 +139,7 @@ def main():
         settings.dropbox_app_secret, dropbox_folder_path="/Запчасти"
     )
     products_with_image_urls = dropbox_images.get_products_with_image_urls(
-        products_with_images)
+        products_with_images_to_update)
 
     upload_products_to_tilda(products_with_image_urls)
 
