@@ -143,6 +143,7 @@ def main():
 
     upload_products_to_tilda(products_with_image_urls)
 
+    state.dump(products_with_images)
     dropbox_images.delete_uploaded_images()
     state.dump(products_with_images)
 
