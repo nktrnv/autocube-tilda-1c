@@ -7,7 +7,7 @@ T = TypeVar('T')
 
 class State:
     def __init__(self, filepath: Path | str):
-        self._filepath = filepath
+        self._filepath = Path(filepath)
 
     def dump(self, products: Sequence[T]):
         with self._filepath.open(mode="wb") as file:

@@ -8,9 +8,9 @@ from src.entities import Product, ProductWithImage
 
 class ImagesFolder:
     def __init__(self, folder_path: Path | str):
-        self._folder_path = folder_path
+        self._folder_path = Path(folder_path)
         self._images = []
-        for path in folder_path.iterdir():
+        for path in self._folder_path.iterdir():
             if path.is_file() and path.suffix.lower() in [".jpg", ".png"]:
                 self._images.append(path)
 
