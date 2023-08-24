@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     odata_url: str
     odata_username: str
     odata_password: str
-    max_products_number: str = 5000
+    max_products_number: int = 5000
     images_folder: str
     state_file: str
     dropbox_refresh_token: str
