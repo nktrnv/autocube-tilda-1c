@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Sequence
 
 
@@ -22,6 +23,12 @@ class Product:
     image_url: str = ""
     categories: Sequence[str] = field(default_factory=list)
     characteristics: Sequence[Characteristic] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class ProductWithImage:
+    product: Product
+    image_path: Path | None = None
 
 
 @dataclass(slots=True)

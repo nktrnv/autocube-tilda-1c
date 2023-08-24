@@ -58,7 +58,7 @@ class OData1CClient:
         return OData1CEntities(entities)
 
 
-class OData1CProductsMapper:
+class OData1CMapper:
     def __init__(
             self,
             entities: OData1CEntities,

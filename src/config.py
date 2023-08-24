@@ -8,10 +8,11 @@ class Settings(BaseSettings):
     odata_url: str
     odata_username: str
     odata_password: str
+    images_folder: str
+    state_file: str
     dropbox_refresh_token: str
     dropbox_app_key: str
     dropbox_app_secret: str
-    images_directory: str
     csv_files_directory: str
     tilda_email: str
     tilda_password: str
