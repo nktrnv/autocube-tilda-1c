@@ -21,8 +21,8 @@ class State:
 
     def filter_not_presented(self, items: Sequence[T]) -> Sequence[T]:
         state = self.load()
-        filtered = []
+        not_presented = []
         for item in items:
             if item not in state:
-                filtered.append(item)
-        return filtered
+                not_presented.append(item)
+        return not_presented
