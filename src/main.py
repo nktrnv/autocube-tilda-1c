@@ -9,7 +9,10 @@ from src.odata_1c import OData1CClient, OData1CMapper
 from src.state import State
 from src.tilda import TildaCsvFileManager, TildaSeleniumCsvFileUploader
 
-logger.add(settings.logfile, format="{time} {level} {message}", level="INFO")
+logger.add(
+    settings.logfile, format="{time} {level} {message}", level="INFO",
+    rotation="10 MB"
+)
 
 
 def get_product_brand(folders: Sequence[Folder]) -> str:
