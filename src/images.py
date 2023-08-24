@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 import dropbox
+from dropbox.exceptions import ApiError
 
 from src.entities import Product, ProductWithImage
 
@@ -54,9 +55,10 @@ class DropboxImages:
     ) -> Sequence[Product]:
         products = []
         for product_with_image in products_with_images:
-            url = self._upload_image(product_with_image.image_path)
             product = product_with_image.product
-            product.image_url = url
+            if product_with_image.image_path is not None:
+                url = self._upload_image(product_with_image.image_path)
+                product.image_url = url
             products.append(product)
         return products
 
@@ -73,8 +75,12 @@ class DropboxImages:
         return self._get_direct_shared_link_url(dropbox_image_path)
 
     def _get_direct_shared_link_url(self, dropbox_image_path: str) -> str:
-        url = self._dropbox.sharing_create_shared_link_with_settings(
-            dropbox_image_path).url
+        try:
+            url = self._dropbox.sharing_create_shared_link_with_settings(
+                dropbox_image_path).url
+        except ApiError:
+            url = self._dropbox.sharing_list_shared_links(
+                dropbox_image_path, direct_only=True).links[0].url
         direct_url = url.replace(
             "www.dropbox.com", "dl.dropboxusercontent.com")
         return direct_url
