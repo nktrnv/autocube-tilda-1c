@@ -20,7 +20,7 @@ class Product:
     price: float | None = None
     old_price: float | None = None
     quantity: int | None = None
-    image_url: str = ""
+    image_url: str = field(default="", compare=False)
     categories: Sequence[str] = field(default_factory=list)
     characteristics: Sequence[Characteristic] = field(default_factory=list)
 
