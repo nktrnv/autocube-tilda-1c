@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Callable, Iterable, Self, Sequence
 
 import requests
+from loguru import logger
 from requests.auth import HTTPBasicAuth
 
 from src.entities import Folder, Product
@@ -45,6 +46,8 @@ class OData1CClient:
     def get_entities(
             self, entity_name: str, select: Iterable[str] | None = None
     ) -> OData1CEntities | None:
+        logger.info(f"Getting the entity {entity_name} using OData")
+
         params = {"$format": "json"}
         if select is not None:
             params["$select"] = ",".join(select)
@@ -52,9 +55,17 @@ class OData1CClient:
         response = requests.get(
             self._odata_url + entity_name, auth=self._auth, params=params)
 
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as error:
+            logger.error(f"Failed to get the entity {entity_name} using OData")
+            raise error
 
         entities = response.json()["value"]
+
+        logger.info(f"The entity {entity_name} was successfully retrieved "
+                    f"using OData")
+
         return OData1CEntities(entities)
 
 

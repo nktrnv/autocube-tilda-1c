@@ -12,6 +12,7 @@ pydantic-settings = "^2.0.3"
 selenium = "^4.11.2"
 requests = "^2.31.0"
 dropbox = "^11.36.2"
+loguru = "^0.7.0"
 
 
 [tool.poetry.group.dev.dependencies]

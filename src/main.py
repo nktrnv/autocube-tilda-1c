@@ -1,11 +1,15 @@
 from typing import Sequence
 
+from loguru import logger
+
 from src.config import settings
-from src.images import ImagesFolder, DropboxImages
 from src.entities import Folder, Product
+from src.images import DropboxImages, ImagesFolder
 from src.odata_1c import OData1CClient, OData1CMapper
 from src.state import State
 from src.tilda import TildaCsvFileManager, TildaSeleniumCsvFileUploader
+
+logger.add(settings.logfile, format="{time} {level} {message}", level="INFO")
 
 
 def get_product_brand(folders: Sequence[Folder]) -> str:
@@ -95,12 +99,24 @@ def get_products_from_1c() -> Sequence[Product]:
         key="Остаток"
     )
 
-    return OData1CMapper(
+    mapped_products = OData1CMapper(
         extended_product_entities, map_single_product).map_products()
+
+    logger.info(f"Successfully received information about "
+                f"{len(mapped_products)} products using OData.")
+
+    if len(mapped_products) > settings.max_products_number:
+        logger.warning(f"Exceeded the maximum number of products in the Tilda. "
+                       f"The number of products was limited to "
+                       f"{settings.max_products_number}")
+
+    return mapped_products[:settings.max_products_number]
 
 
 def upload_products_to_tilda(products: Sequence[Product]):
     if len(products) == 0:
+        logger.info("Uploading files to the Tilde is skipped because the"
+                    "number of products is zero")
         return
 
     file_manager = TildaCsvFileManager(
@@ -121,14 +137,16 @@ def upload_products_to_tilda(products: Sequence[Product]):
     file_uploader.upload_file()
 
 
+@logger.catch
 def main():
     products = get_products_from_1c()
 
-    images_folder = ImagesFolder(settings.images_folder)
-    products_with_images = images_folder.get_products_with_images(
+    images_folder = ImagesFolder(
+        settings.images_folder,
         products,
         match=lambda product, image_name: product.sku == image_name
     )
+    products_with_images = images_folder.get_products_with_images()
 
     state = State(settings.state_file)
     products_with_images_to_update = state.filter_not_presented(
@@ -136,10 +154,10 @@ def main():
 
     dropbox_images = DropboxImages(
         settings.dropbox_refresh_token, settings.dropbox_app_key,
-        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти"
+        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти",
+        products_with_images=products_with_images_to_update
     )
-    products_with_image_urls = dropbox_images.get_products_with_image_urls(
-        products_with_images_to_update)
+    products_with_image_urls = dropbox_images.get_products_with_image_urls()
 
     upload_products_to_tilda(products_with_image_urls)
 

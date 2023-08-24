@@ -5,9 +5,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8")
 
+    logfile: str
     odata_url: str
     odata_username: str
     odata_password: str
+    max_products_number: str = 5000
     images_folder: str
     state_file: str
     dropbox_refresh_token: str

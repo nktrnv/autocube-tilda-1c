@@ -3,7 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from loguru import logger
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -53,8 +55,13 @@ class TildaCsvFileManager:
         current_datetime = datetime.now().strftime("%d_%m_%Y-%H_%M_%S")
         filename = self._filename_format.format(datetime=current_datetime)
         self._filepath = self._save_to / filename
+
+        logger.info(f"Start creating a csv file {self._filepath}")
+
         rows = map(self._get_product_csv_dict_row, self._products)
         self._write_file(self._filepath, rows)
+
+        logger.info(f"Csv file {self._filepath} was created successfully")
 
     def _write_file(self, path: Path, rows: Iterable[dict]):
         with path.open(mode="w", encoding="utf-8", newline="") as file:
@@ -117,10 +124,18 @@ class TildaSeleniumCsvFileUploader:
         self._driver.implicitly_wait(self._selenium_timeout)
 
     def upload_file(self):
-        self._login_to_tilda()
-        self._upload_file()
+        try:
+            self._login_to_tilda()
+        except TimeoutException:
+            logger.error("Error while logging in to the Tilda website. A "
+                         "captcha or an incorrect login or password was "
+                         "encountered.")
+        else:
+            self._upload_file()
 
     def _login_to_tilda(self):
+        logger.info("Start to login to Tilda website.")
+
         self._driver.get("https://tilda.cc/login")
 
         email_input = self._driver.find_element(By.ID, "email")
@@ -134,7 +149,12 @@ class TildaSeleniumCsvFileUploader:
         wait = WebDriverWait(self._driver, self._selenium_timeout)
         wait.until(expected_conditions.url_to_be("https://tilda.cc/projects/"))
 
+        logger.info("Successfully logged in to the Tilda website.")
+
     def _upload_file(self):
+        logger.info(f"Start uploading a csv file {self._filepath.name} to "
+                    f"Tilda.")
+
         self._driver.get(
             f"https://store.tilda.cc/store/?projectid={self._project_id}")
 
@@ -166,5 +186,13 @@ class TildaSeleniumCsvFileUploader:
             self._driver, self._file_uploading_timeout)
         results_element_locator = (
             By.CLASS_NAME, "t-store__import__results")
-        wait.until(expected_conditions.visibility_of_element_located(
-            results_element_locator))
+
+        try:
+            wait.until(expected_conditions.visibility_of_element_located(
+                results_element_locator))
+        except TimeoutException:
+            logger.error(f"Exceeded the timeout for uploading a csv file "
+                         f"{self._filepath.name} to the Tilda.")
+
+        logger.info(f"Csv file {self._filepath.name} successfully uploaded to "
+                    f"Tilda.")

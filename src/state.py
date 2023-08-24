@@ -1,6 +1,8 @@
-from pathlib import Path
 import pickle
+from pathlib import Path
 from typing import Sequence, TypeVar
+
+from loguru import logger
 
 T = TypeVar('T')
 
@@ -25,4 +27,5 @@ class State:
         for item in items:
             if item not in state:
                 not_presented.append(item)
+
         return not_presented
