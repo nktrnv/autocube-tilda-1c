@@ -145,7 +145,6 @@ def main():
 
     state.dump(products_with_images)
     dropbox_images.delete_uploaded_images()
-    state.dump(products_with_images)
 
 
 if __name__ == '__main__':
