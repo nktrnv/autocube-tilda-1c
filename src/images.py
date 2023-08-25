@@ -59,7 +59,8 @@ class DropboxImages:
             app_key: str,
             app_secret: str,
             dropbox_folder_path: str,
-            products_with_images: Sequence[ProductWithImage]
+            products_with_images: Sequence[ProductWithImage],
+            default_image_path: Path | str
     ):
         self._dropbox = dropbox.Dropbox(
             oauth2_refresh_token=refresh_token,
@@ -69,15 +70,24 @@ class DropboxImages:
         self._dropbox_folder_path = dropbox_folder_path
         self._products_with_images = products_with_images
         self._uploaded_images = []
+        self._default_image_path = Path(default_image_path)
+        self._default_image_url = self._upload_image(self._default_image_path)
 
     def get_products_with_image_urls(self) -> Sequence[Product]:
         products = []
         for product_with_image in self._products_with_images:
             product = product_with_image.product
-            if product_with_image.image_path is not None:
-                url = self._upload_image(product_with_image.image_path)
-                product.image_url = url
+            image_path = product_with_image.image_path
+
+            dropbox_image_path = self._get_dropbox_image_path(image_path)
+            if product.image_url != dropbox_image_path:
+                if image_path is None:
+                    product.image_url = self._default_image_url
+                else:
+                    product.image_url = self._upload_image(image_path)
+
             products.append(product)
+
         return products
 
     def delete_uploaded_images(self):
@@ -85,8 +95,11 @@ class DropboxImages:
             self._delete_image(uploaded_image)
         self._uploaded_images.clear()
 
+    def _get_dropbox_image_path(self, path: Path) -> str:
+        return f"{self._dropbox_folder_path}/{path.name}"
+
     def _upload_image(self, path: Path) -> str:
-        dropbox_image_path = f"{self._dropbox_folder_path}/{path.name}"
+        dropbox_image_path = self._get_dropbox_image_path(path)
         logger.info(f"Uploading the file {dropbox_image_path} to Dropbox.")
         image_bytes = path.read_bytes()
         self._dropbox.files_upload(image_bytes, dropbox_image_path)

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     odata_password: str
     max_products_number: int = 5000
     images_folder: str
+    default_image: str
     state_file: str
     dropbox_refresh_token: str
     dropbox_app_key: str
