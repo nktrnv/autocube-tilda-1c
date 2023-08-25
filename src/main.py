@@ -9,7 +9,10 @@ from src.odata_1c import OData1CClient, OData1CMapper
 from src.state import State
 from src.tilda import TildaCsvFileManager, TildaSeleniumCsvFileUploader
 
-logger.add(settings.logfile, format="{time} {level} {message}", level="INFO")
+logger.add(
+    settings.logfile, format="{time} {level} {message}", level="INFO",
+    rotation="10 MB"
+)
 
 
 def get_product_brand(folders: Sequence[Folder]) -> str:
@@ -33,7 +36,8 @@ def get_product_quantity(product: dict) -> int:
 
 def map_single_product(
         product: dict, folders: Sequence[Folder]) -> Product | None:
-    if not product["Артикул"]:
+    sku = product['Артикул']
+    if not sku:
         return
 
     folder_names = [folder.name for folder in folders]
@@ -42,13 +46,21 @@ def map_single_product(
     if is_not_part or is_not_foton:
         return
 
+    quantity = get_product_quantity(product)
+    description = "В наличии"
+    if quantity == 0:
+        description = "На заказ"
+
+    title = product["НаименованиеПолное"].replace(",", ", ")
+    title = f"{title} [арт. {sku}]"
+
     return Product(
         external_id=product["Ref_Key"],
-        title=product["НаименованиеПолное"],
-        sku=product["Артикул"],
+        title=title,
+        sku=sku,
         brand=get_product_brand(folders),
+        description=description,
         price=get_product_price(product),
-        quantity=get_product_quantity(product),
         categories=[
             "Запчасти/Каталог", f"Запчасти/{get_product_brand(folders)}"]
     )
@@ -153,9 +165,12 @@ def main():
         products_with_images)
 
     dropbox_images = DropboxImages(
-        settings.dropbox_refresh_token, settings.dropbox_app_key,
-        settings.dropbox_app_secret, dropbox_folder_path="/Запчасти",
-        products_with_images=products_with_images_to_update
+        settings.dropbox_refresh_token,
+        settings.dropbox_app_key,
+        settings.dropbox_app_secret,
+        "/Запчасти",
+        products_with_images_to_update,
+        settings.default_image
     )
     products_with_image_urls = dropbox_images.get_products_with_image_urls()
 
