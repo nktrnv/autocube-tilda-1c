@@ -156,7 +156,8 @@ def main():
     images_folder = ImagesFolder(
         settings.images_folder,
         products,
-        match=lambda product, image_name: product.sku == image_name
+        settings.default_image,
+        match=lambda product, image_name: product.sku == image_name,
     )
     products_with_images = images_folder.get_products_with_images()
 
@@ -170,7 +171,7 @@ def main():
         settings.dropbox_app_secret,
         "/Запчасти",
         products_with_images_to_update,
-        settings.default_image
+        Path(settings.images_folder) / settings.default_image
     )
     products_with_image_urls = dropbox_images.get_products_with_image_urls()
 

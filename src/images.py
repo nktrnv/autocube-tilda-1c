@@ -13,10 +13,12 @@ class ImagesFolder:
             self,
             folder_path: Path | str,
             products: Sequence[Product],
+            default_image_name: str,
             match: Callable[[Product, str], bool]
     ):
         self._folder_path = Path(folder_path)
         self._products = products
+        self._default_image_path = self._folder_path / default_image_name
         self._match = match
         self._images = []
 
@@ -49,7 +51,7 @@ class ImagesFolder:
         for image in self._images:
             if self._match(product, image.stem):
                 return ProductWithImage(product, image)
-        return ProductWithImage(product)
+        return ProductWithImage(product, self._default_image_path)
 
 
 class DropboxImages:
@@ -79,7 +81,8 @@ class DropboxImages:
             product = product_with_image.product
             image_path = product_with_image.image_path
 
-            if image_path is None:
+            if (image_path == self._default_image_path and
+                    product.image_url is not None):
                 product.image_url = self._default_image_url
             else:
                 product.image_url = self._upload_image(image_path)
