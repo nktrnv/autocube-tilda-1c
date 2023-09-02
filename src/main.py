@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Sequence
 
 from loguru import logger
@@ -36,14 +37,17 @@ def get_product_quantity(product: dict) -> int:
 
 def map_single_product(
         product: dict, folders: Sequence[Folder]) -> Product | None:
-    sku = product['Артикул']
+    sku = product["Артикул"]
     if not sku:
         return
 
     folder_names = [folder.name for folder in folders]
-    is_not_part = "Запасные части" not in folder_names
-    is_not_foton = "FOTON" not in folder_names
-    if is_not_part or is_not_foton:
+
+    is_part = "Запасные части" in folder_names
+    is_foton = "FOTON" in folder_names
+    is_ashok = "ASHOK" in folder_names
+
+    if not (is_part and (is_foton or is_ashok)):
         return
 
     quantity = get_product_quantity(product)
@@ -127,7 +131,7 @@ def get_products_from_1c() -> Sequence[Product]:
 
 def upload_products_to_tilda(products: Sequence[Product]):
     if len(products) == 0:
-        logger.info("Uploading files to the Tilde is skipped because the"
+        logger.info("Uploading files to the Tilde is skipped because the "
                     "number of products is zero")
         return
 
@@ -156,7 +160,8 @@ def main():
     images_folder = ImagesFolder(
         settings.images_folder,
         products,
-        match=lambda product, image_name: product.sku == image_name
+        settings.default_image,
+        match=lambda product, image_name: product.sku == image_name,
     )
     products_with_images = images_folder.get_products_with_images()
 
@@ -170,7 +175,7 @@ def main():
         settings.dropbox_app_secret,
         "/Запчасти",
         products_with_images_to_update,
-        settings.default_image
+        Path(settings.images_folder) / settings.default_image
     )
     products_with_image_urls = dropbox_images.get_products_with_image_urls()
 
